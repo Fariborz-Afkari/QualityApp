@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -16,10 +18,11 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        val props = java.util.Properties()
+        // ✅ استفاده از Properties ایمپورت‌شده، نه java.util.Properties()
+        val props = Properties()
         val localPropsFile = project.rootProject.file("local.properties")
         if (localPropsFile.exists()) {
-            props.load(localPropsFile.inputStream())
+            localPropsFile.inputStream().use { props.load(it) }
         }
 
         buildConfigField("String", "GITHUB_USERNAME", "\"${props.getProperty("GITHUB_USERNAME", "Fariborz-Afkari")}\"")
@@ -79,16 +82,16 @@ dependencies {
     ksp("com.google.dagger:hilt-android-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
-    // -------- Retrofit (شبکه) --------
+    // Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
 
-    // -------- Moshi (تبدیل JSON) --------
+    // Moshi
     implementation("com.squareup.moshi:moshi:1.15.1")
     implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
     ksp("com.squareup.moshi:moshi-kotlin-codegen:1.15.1")
 
-    // OkHttp + Logging (برای دیباگ درخواست‌های Retrofit)
+    // OkHttp + Logging
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
