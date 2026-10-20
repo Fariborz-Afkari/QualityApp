@@ -19,7 +19,12 @@ fun SelectionScreen(navController: NavHostController) {
         Text("انتخاب چک‌لیست", style = MaterialTheme.typography.headlineMedium)
         Text("برای شروع، یکی از چک‌لیست‌های زیر را انتخاب کنید.")
         lists.forEach { (title, id) ->
-            ElevatedCard(Modifier.fillMaxWidth(), onClick = { navController.navigate(Screen.Questions.create(id)) }) {
+            ElevatedCard(
+    onClick = {
+        navController.navigate(Screen.Questions.create(id))
+    },
+    modifier = Modifier.fillMaxWidth()
+) {
                 Row(Modifier.fillMaxWidth().padding(18.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(title, style = MaterialTheme.typography.titleMedium)
                     Text("شروع ←")
