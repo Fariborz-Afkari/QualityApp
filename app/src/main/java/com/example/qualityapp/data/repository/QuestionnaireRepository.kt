@@ -22,15 +22,11 @@ class QuestionnaireRepository @Inject constructor(
     private val owner = BuildConfig.GITHUB_USERNAME
     private val repo  = BuildConfig.GITHUB_REPO
 
-    /** توکن را از تنظیمات می‌خواند؛ اگر خالی باشد null برمی‌گرداند. */
     private suspend fun authHeader(): String? {
         val t = prefs.currentToken()
         return if (t.isBlank()) null else "Bearer $t"
     }
 
-    // ---------------------------------------------------------------
-    // 1) لیست پرسشنامه‌ها (فایل‌های .json داخل questionnaires/)
-    // ---------------------------------------------------------------
     suspend fun listQuestionnaires(): List<String> {
         val response = apiService.listDirectory(
             owner = owner,
@@ -48,9 +44,6 @@ class QuestionnaireRepository @Inject constructor(
             .sorted()
     }
 
-    // ---------------------------------------------------------------
-    // 2) خواندن یک پرسشنامه با نام فایل
-    // ---------------------------------------------------------------
     suspend fun loadQuestionnaire(fileName: String): Questionnaire {
         val path = "$QUESTIONNAIRES_DIR/$fileName"
         val response = apiService.getFile(
@@ -69,11 +62,7 @@ class QuestionnaireRepository @Inject constructor(
             ?: throw IOException("خطا در تبدیل JSON پرسشنامه")
     }
 
-    // ---------------------------------------------------------------
-    // 3) ذخیره پاسخ‌ها در پوشه submissions (ایجاد یا به‌روزرسانی)
-    // ---------------------------------------------------------------
     suspend fun saveSubmission(fileName: String, submission: Submission): GitHubCommitResult {
-        // بررسی وجود توکن — نوشتن بدون توکن ممکن نیست
         val token = prefs.currentToken()
         if (token.isBlank()) {
             throw IOException("برای ذخیره در گیت‌هاب باید توکن در تنظیمات وارد شود.")
@@ -84,7 +73,6 @@ class QuestionnaireRepository @Inject constructor(
         val json = moshi.adapter(Submission::class.java).toJson(submission)
         val base64Content = encodeBase64(json)
 
-        // اگر فایل قبلاً وجود دارد، باید sha آن را بگیریم
         val existingSha = tryGetSha(path, auth)
 
         val request = GitHubUpdateFileRequest(
@@ -115,9 +103,6 @@ class QuestionnaireRepository @Inject constructor(
         )
     }
 
-    // ---------------------------------------------------------------
-    // کمکی‌ها
-    // ---------------------------------------------------------------
     private suspend fun tryGetSha(path: String, auth: String): String? = try {
         val r = apiService.getFile(owner, repo, path, auth)
         if (r.isSuccessful) r.body()?.sha else null
