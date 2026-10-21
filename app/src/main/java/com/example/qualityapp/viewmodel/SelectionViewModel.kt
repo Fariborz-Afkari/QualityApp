@@ -1,18 +1,26 @@
 package com.example.qualityapp.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.qualityapp.data.repository.QuestionnaireRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class AppError(
+    val title: String,
+    val message: String,
+    val details: String? = null
+)
+
 data class SelectionUiState(
     val isLoading: Boolean = false,
-    val error: String? = null,
+    val error: AppError? = null,
     val questionnaireNames: List<String> = emptyList(),
     val selectedName: String? = null,
     val showDialog: Boolean = false,
@@ -30,56 +38,57 @@ class SelectionViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(SelectionUiState())
     val uiState = _uiState.asStateFlow()
 
-    // ------------------ Actions ------------------
-
-    fun onLineChange(v: String) {
-        _uiState.update { it.copy(line = v, station = "") }
-    }
+    fun onLineChange(v: String) = _uiState.update { it.copy(line = v, station = "") }
     fun onStationChange(v: String) = _uiState.update { it.copy(station = v) }
     fun onStationNumberChange(v: String) = _uiState.update { it.copy(stationNumber = v) }
     fun onTrainNumberChange(v: String) = _uiState.update { it.copy(trainNumber = v) }
 
-    /** کلیک روی دکمه "انتخاب چک لیست" — این متد باید لیست را از گیت‌هاب بخواند. */
     fun openQuestionnaireDialog() {
-        _uiState.update { it.copy(showDialog = true, error = null) }
-        // اگر قبلاً لیست گرفته نشده، از گیت‌هاب بگیر
-        if (_uiState.value.questionnaireNames.isEmpty()) {
-            loadQuestionnaireList()
-        }
+        _uiState.update { it.copy(showDialog = true) }
+        if (_uiState.value.questionnaireNames.isEmpty()) loadQuestionnaireList()
     }
 
-    fun dismissDialog() {
-        _uiState.update { it.copy(showDialog = false) }
-    }
+    fun dismissDialog() = _uiState.update { it.copy(showDialog = false) }
 
-    fun selectQuestionnaire(name: String) {
+    fun selectQuestionnaire(name: String) =
         _uiState.update { it.copy(selectedName = name, showDialog = false) }
-    }
+
+    fun clearError() = _uiState.update { it.copy(error = null) }
 
     fun loadQuestionnaireList() {
         if (_uiState.value.isLoading) return
         _uiState.update { it.copy(isLoading = true, error = null) }
+
         viewModelScope.launch {
-            runCatching { repository.listQuestionnaires() }
-                .onSuccess { names ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            questionnaireNames = names,
-                            error = if (names.isEmpty())
-                                "هیچ فایل .json در پوشه questionnaires پیدا نشد"
-                            else null
-                        )
-                    }
+            try {
+                val names = repository.listQuestionnaires()
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        questionnaireNames = names,
+                        error = if (names.isEmpty())
+                            AppError(
+                                title = "لیست خالی است",
+                                message = "هیچ فایل .json در پوشه questionnaires پیدا نشد."
+                            )
+                        else null
+                    )
                 }
-                .onFailure { e ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = e.message ?: "خطا در ارتباط با گیت‌هاب"
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (t: Throwable) {
+                Log.e("SelectionVM", "loadQuestionnaireList failed", t)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = AppError(
+                            title = "خطا در دریافت لیست",
+                            message = t.message ?: t.javaClass.simpleName,
+                            details = t.stackTraceToString().take(3000)
                         )
-                    }
+                    )
                 }
+            }
         }
     }
 }
