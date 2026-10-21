@@ -36,7 +36,8 @@ android {
 
         // مسیر پوشه‌ها داخل مخزن داده — اگر فایل‌ها در ریشه هستند، مقدار را خالی بگذارید
         buildConfigField("String", "QUESTIONNAIRES_PATH", "\"${props.getProperty("QUESTIONNAIRES_PATH", "questionnaires")}\"")
-        buildConfigField("String", "SUBMISSIONS_PATH",   "\"${props.getProperty("SUBMISSIONS_PATH", "submissions")}\"")      buildConfigField("String", "SUBMISSIONS_PATH",   "\"${props.getProperty("SUBMISSIONS_PATH", "submissions")}\"")
+        buildConfigField("String", "SUBMISSIONS_PATH",   "\"${props.getProperty("SUBMISSIONS_PATH", "submissions")}\"")
+        
     }
 
     buildFeatures {
