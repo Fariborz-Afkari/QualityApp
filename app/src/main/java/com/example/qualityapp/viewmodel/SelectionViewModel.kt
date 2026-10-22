@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.qualityapp.data.repository.QuestionnaireRepository
+import com.example.qualityapp.data.session.QuestionnaireSession
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,26 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import com.example.qualityapp.data.session.QuestionnaireSession
 
-init {
-    session.lastSelectedFileName?.let { prev ->
-        _uiState.update { it.copy(selectedName = prev) }
-    }
-}
-/** قبل از ناوبری به Questions، متادیتا را در session ذخیره می‌کند. */
-fun startQuestionnaire(): Boolean {
-    val name = _uiState.value.selectedName ?: return false
-    session.setMetadata(
-        line = _uiState.value.line,
-        station = _uiState.value.station,
-        stationNumber = _uiState.value.stationNumber,
-        trainNumber = _uiState.value.trainNumber
-    )
-    session.resetAnswersKeepingQuestionnaire()
-    session.lastSelectedFileName = name
-    return true
-}
 data class AppError(
     val title: String,
     val message: String,
@@ -52,28 +34,53 @@ data class SelectionUiState(
 @HiltViewModel
 class SelectionViewModel @Inject constructor(
     private val repository: QuestionnaireRepository,
-    private val session: com.example.qualityapp.data.session.QuestionnaireSession  // ← جدید
+    private val session: QuestionnaireSession
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SelectionUiState())
     val uiState = _uiState.asStateFlow()
 
-    fun onLineChange(v: String) = _uiState.update { it.copy(line = v, station = "") }
-    fun onStationChange(v: String) = _uiState.update { it.copy(station = v) }
-    fun onStationNumberChange(v: String) = _uiState.update { it.copy(stationNumber = v) }
-    fun onTrainNumberChange(v: String) = _uiState.update { it.copy(trainNumber = v) }
+    init {
+        // اگر کاربر دکمه «تکرار پرسشنامه» را در صفحه پایان زده باشد،
+        // همان پرسشنامه را از قبل انتخاب می‌کنیم و نام قبلی را نمایش می‌دهیم.
+        session.lastSelectedFileName?.let { prev ->
+            _uiState.update { it.copy(selectedName = prev) }
+        }
+    }
 
+    // -------------------- Actions: فیلدهای ورودی --------------------
+
+    fun onLineChange(v: String) {
+        _uiState.update { it.copy(line = v, station = "") }
+    }
+
+    fun onStationChange(v: String) =
+        _uiState.update { it.copy(station = v) }
+
+    fun onStationNumberChange(v: String) =
+        _uiState.update { it.copy(stationNumber = v) }
+
+    fun onTrainNumberChange(v: String) =
+        _uiState.update { it.copy(trainNumber = v) }
+
+    // -------------------- Actions: دیالوگ پرسشنامه --------------------
+
+    /** دکمه «انتخاب چک لیست» — دیالوگ باز می‌شود و اگر لیست خالی است، از گیت‌هاب می‌خواند. */
     fun openQuestionnaireDialog() {
         _uiState.update { it.copy(showDialog = true) }
         if (_uiState.value.questionnaireNames.isEmpty()) loadQuestionnaireList()
     }
 
-    fun dismissDialog() = _uiState.update { it.copy(showDialog = false) }
+    fun dismissDialog() =
+        _uiState.update { it.copy(showDialog = false) }
 
     fun selectQuestionnaire(name: String) =
         _uiState.update { it.copy(selectedName = name, showDialog = false) }
 
-    fun clearError() = _uiState.update { it.copy(error = null) }
+    fun clearError() =
+        _uiState.update { it.copy(error = null) }
+
+    // -------------------- Actions: گرفتن لیست از گیت‌هاب --------------------
 
     fun loadQuestionnaireList() {
         if (_uiState.value.isLoading) return
@@ -109,6 +116,36 @@ class SelectionViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    // -------------------- Actions: شروع پرسشنامه --------------------
+
+    /**
+     * قبل از ناوبری به QuestionsScreen، متادیتای ورودی صفحه (خط، ایستگاه و ...)
+     * را در session ذخیره می‌کند و پاسخ‌های قبلی را (اگر بوده) پاک می‌کند.
+     *
+     * @return true اگر پرسشنامه‌ای انتخاب شده باشد، وگرنه false.
+     */
+    fun startQuestionnaire(): Boolean {
+        val name = _uiState.value.selectedName ?: return false
+
+        session.setMetadata(
+            line = _uiState.value.line,
+            station = _uiState.value.station,
+            stationNumber = _uiState.value.stationNumber,
+            trainNumber = _uiState.value.trainNumber
+        )
+        session.resetAnswersKeepingQuestionnaire()
+        session.lastSelectedFileName = name
+        return true
+    }
+
+    /** برای دکمه «انصراف» در صفحه انتخاب — اگر session باز است ولی شروع نکرده، پاک شود. */
+    fun cancelSelection() {
+        // اگر پرسشنامه‌ای شروع نشده، فقط انتخاب را پاک کن
+        if (session.questionnaire == null) {
+            session.lastSelectedFileName = null
         }
     }
 }
