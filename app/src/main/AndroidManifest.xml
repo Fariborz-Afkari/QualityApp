@@ -1,17 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ✅ این خط باعث کرش می‌شد -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- اختیاری: برای نمایش وضعیت شبکه -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <application
         android:name=".QualityApp"
         android:allowBackup="true"
-        android:supportsRtl="true"
         android:label="کیفیت"
+        android:supportsRtl="true"
         android:theme="@style/Theme.QualityApp">
+
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:theme="@style/Theme.QualityApp">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
     </application>
 </manifest>
