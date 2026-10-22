@@ -9,5 +9,5 @@ package com.example.qualityapp.data
  * با دسترسی: Repository access -> فقط MetroQuality، Permissions -> Contents: Read and write
  */
 object Secrets {
-    const val GITHUB_TOKEN: String = "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"
+    const val GITHUB_TOKEN: String = "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"
 }
