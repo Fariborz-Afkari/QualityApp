@@ -35,6 +35,7 @@ data class Submission(
     @Json(name = "personnelNumber")    val personnelNumber: String? = null,
     @Json(name = "line")               val line: String? = null,
     @Json(name = "station")            val station: String? = null,
+    @Json(name = "stationNumber")      val stationNumber: String? = null,
     @Json(name = "trainNumber")        val trainNumber: String? = null,
     @Json(name = "timestamp")          val timestamp: String,
     @Json(name = "generalComments")    val generalComments: String? = null,

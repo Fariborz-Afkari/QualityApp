@@ -13,9 +13,35 @@ class QuestionnaireSession @Inject constructor() {
     var questionnaire: Questionnaire? = null
         private set
 
-    private val answersMap = LinkedHashMap<Int, Answer>() // key = questionNumber
+    // اطلاعات ایستگاه که در صفحه انتخاب وارد می‌شود
+    var line: String = ""
+        private set
+    var station: String = ""
+        private set
+    var stationNumber: String = ""
+        private set
+    var trainNumber: String = ""
+        private set
 
-    /** شروع جلسه جدید. اگر فایل عوض شود، پاسخ‌های قبلی پاک می‌شوند. */
+    /** برای پیش‌انتخاب در صفحه انتخاب هنگام «تکرار پرسشنامه» */
+    var lastSelectedFileName: String? = null
+
+    private val answersMap = LinkedHashMap<Int, Answer>()
+
+    /** تنظیم متادیتا — از SelectionViewModel فراخوانی می‌شود. */
+    fun setMetadata(
+        line: String,
+        station: String,
+        stationNumber: String,
+        trainNumber: String
+    ) {
+        this.line = line.trim()
+        this.station = station.trim()
+        this.stationNumber = stationNumber.trim()
+        this.trainNumber = trainNumber.trim()
+    }
+
+    /** شروع پرسشنامه — فقط اگر فایل عوض شود، پاسخ‌ها را پاک می‌کند. */
     fun start(fileName: String, questionnaire: Questionnaire) {
         if (this.fileName != fileName) {
             this.fileName = fileName
@@ -30,10 +56,24 @@ class QuestionnaireSession @Inject constructor() {
         }
     }
 
-    /** پاک کردن کامل جلسه — برای دکمه «تکرار پرسشنامه». */
+    /** پاک‌کردن پاسخ‌ها برای «تکرار پرسشنامه» — پرسشنامه و متادیتا باقی می‌مانند. */
+    fun resetAnswersKeepingQuestionnaire() {
+        val q = questionnaire ?: return
+        answersMap.clear()
+        q.questions.forEach { qq ->
+            answersMap[qq.questionNumber] = Answer(qq.questionNumber, qq.questionText)
+        }
+    }
+
+    /** پاک‌کردن کل session — برای «پرسشنامه جدید». */
     fun reset() {
         fileName = null
         questionnaire = null
+        line = ""
+        station = ""
+        stationNumber = ""
+        trainNumber = ""
+        lastSelectedFileName = null
         answersMap.clear()
     }
 
@@ -55,6 +95,5 @@ class QuestionnaireSession @Inject constructor() {
         )
     }
 
-    /** برای نمایش در UI — یک کپی از پاسخ‌ها. */
     fun snapshot(): Map<Int, Answer> = answersMap.toMap()
 }

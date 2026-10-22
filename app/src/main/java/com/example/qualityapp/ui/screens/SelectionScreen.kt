@@ -116,8 +116,10 @@ fun SelectionScreen(
                 ) { Text("انصراف") }
                 Button(
                     onClick = {
-                        state.selectedName?.let {
-                            navController.navigate(Screen.Questions.create(it))
+                        if (viewModel.startQuestionnaire()) {
+                            state.selectedName?.let { name ->
+                                navController.navigate(Screen.Questions.create(name))
+                            }
                         }
                     },
                     enabled = state.selectedName != null,

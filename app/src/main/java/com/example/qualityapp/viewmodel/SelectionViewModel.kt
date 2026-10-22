@@ -11,7 +11,26 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.example.qualityapp.data.session.QuestionnaireSession
 
+init {
+    session.lastSelectedFileName?.let { prev ->
+        _uiState.update { it.copy(selectedName = prev) }
+    }
+}
+/** قبل از ناوبری به Questions، متادیتا را در session ذخیره می‌کند. */
+fun startQuestionnaire(): Boolean {
+    val name = _uiState.value.selectedName ?: return false
+    session.setMetadata(
+        line = _uiState.value.line,
+        station = _uiState.value.station,
+        stationNumber = _uiState.value.stationNumber,
+        trainNumber = _uiState.value.trainNumber
+    )
+    session.resetAnswersKeepingQuestionnaire()
+    session.lastSelectedFileName = name
+    return true
+}
 data class AppError(
     val title: String,
     val message: String,
@@ -32,7 +51,8 @@ data class SelectionUiState(
 
 @HiltViewModel
 class SelectionViewModel @Inject constructor(
-    private val repository: QuestionnaireRepository
+    private val repository: QuestionnaireRepository,
+    private val session: com.example.qualityapp.data.session.QuestionnaireSession  // ← جدید
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SelectionUiState())
