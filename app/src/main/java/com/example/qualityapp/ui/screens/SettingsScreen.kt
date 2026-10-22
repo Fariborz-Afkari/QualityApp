@@ -10,9 +10,9 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -64,14 +64,11 @@ fun SettingsScreen(
             HorizontalDivider()
             Spacer(Modifier.height(16.dp))
 
-            Text(
-                "تنظیمات گیت‌هاب",
-                style = MaterialTheme.typography.titleMedium
-            )
+            Text("تنظیمات گیت‌هاب", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
             Text(
                 "برای ذخیره پاسخ‌ها لازم است توکن دسترسی گیت‌هاب را وارد کنید. " +
-                        "توکن فقط روی همین دستگاه ذخیره می‌شود.",
+                        "همچنین می‌توانید فایل token.txt را در پوشه اپ روی گوشی بگذارید — فایل اولویت دارد.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -81,7 +78,7 @@ fun SettingsScreen(
             OutlinedTextField(
                 value = state.token,
                 onValueChange = viewModel::onTokenChange,
-                label = { Text("GitHub Token") },
+                label = { Text("GitHub Token (اختیاری اگر فایل دارید)") },
                 singleLine = true,
                 visualTransformation = if (tokenVisible)
                     VisualTransformation.None
@@ -97,6 +94,44 @@ fun SettingsScreen(
                 },
                 modifier = Modifier.fillMaxWidth()
             )
+
+            Spacer(Modifier.height(12.dp))
+
+            // ---- کارت اطلاعات توکن فعلی ----
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Column(Modifier.padding(12.dp)) {
+                    Text(
+                        "منبع فعلی توکن: ${state.tokenInfo.source}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        "طول توکن: ${state.tokenInfo.length} کاراکتر",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "مسیر فایل:",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                    Text(
+                        state.tokenInfo.path,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = viewModel::refreshTokenInfo,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("بازخوانی اطلاعات توکن")
+                    }
+                }
+            }
 
             Spacer(Modifier.height(24.dp))
 
