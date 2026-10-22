@@ -1,5 +1,6 @@
 package com.example.qualityapp.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.qualityapp.data.TokenProvider
@@ -23,6 +24,7 @@ data class SettingsUiState(
     val number: String = "",
     val token: String = "",
     val isSaving: Boolean = false,
+    val isImporting: Boolean = false,
     val savedMessage: String? = null,
     val error: String? = null,
     val tokenInfo: TokenInfo = TokenInfo()
@@ -70,6 +72,31 @@ class SettingsViewModel @Inject constructor(
                         path = tokenProvider.tokenFilePath()
                     )
                 )
+            }
+        }
+    }
+
+    fun importTokenFromUri(uri: Uri) {
+        if (_uiState.value.isImporting) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isImporting = true, error = null, savedMessage = null) }
+            val result = tokenProvider.importFromUri(uri)
+            result.onSuccess { token ->
+                _uiState.update {
+                    it.copy(
+                        isImporting = false,
+                        token = token,
+                        savedMessage = "توکن از فایل بارگذاری شد (${token.length} کاراکتر)"
+                    )
+                }
+                refreshTokenInfo()
+            }.onFailure { e ->
+                _uiState.update {
+                    it.copy(
+                        isImporting = false,
+                        error = "بارگذاری ناموفق: ${e.message}"
+                    )
+                }
             }
         }
     }

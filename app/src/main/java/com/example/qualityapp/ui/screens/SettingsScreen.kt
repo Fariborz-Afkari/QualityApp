@@ -1,10 +1,13 @@
 package com.example.qualityapp.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -30,6 +33,13 @@ fun SettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var tokenVisible by remember { mutableStateOf(false) }
+
+    // دیالوگ سیستم برای انتخاب فایل (SAF)
+    val filePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) viewModel.importTokenFromUri(uri)
+    }
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Column(
@@ -67,18 +77,40 @@ fun SettingsScreen(
             Text("تنظیمات گیت‌هاب", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
             Text(
-                "برای ذخیره پاسخ‌ها لازم است توکن دسترسی گیت‌هاب را وارد کنید. " +
-                        "همچنین می‌توانید فایل token.txt را در پوشه اپ روی گوشی بگذارید — فایل اولویت دارد.",
+                "توکن را می‌توانید مستقیماً اینجا وارد کنید، یا از یک فایل متنی " +
+                        "(token.txt) بارگذاری کنید. فایل باید فقط شامل خود توکن باشد.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(Modifier.height(12.dp))
 
+            // ---- دکمه بارگذاری از فایل ----
+            OutlinedButton(
+                onClick = { filePicker.launch(arrayOf("text/plain", "*/*")) },
+                enabled = !state.isImporting,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (state.isImporting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                } else {
+                    Icon(Icons.Filled.Upload, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text("بارگذاری توکن از فایل")
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // ---- فیلد توکن ----
             OutlinedTextField(
                 value = state.token,
                 onValueChange = viewModel::onTokenChange,
-                label = { Text("GitHub Token (اختیاری اگر فایل دارید)") },
+                label = { Text("GitHub Token") },
                 singleLine = true,
                 visualTransformation = if (tokenVisible)
                     VisualTransformation.None
@@ -113,9 +145,9 @@ fun SettingsScreen(
                         "طول توکن: ${state.tokenInfo.length} کاراکتر",
                         style = MaterialTheme.typography.bodySmall
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(8.dp))
                     Text(
-                        "مسیر فایل:",
+                        "مسیر فایل روی گوشی (برای دسترسی از ADB):",
                         style = MaterialTheme.typography.labelMedium
                     )
                     Text(
