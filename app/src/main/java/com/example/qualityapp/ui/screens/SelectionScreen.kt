@@ -20,6 +20,7 @@ import androidx.navigation.NavHostController
 import com.example.qualityapp.ui.navigation.Screen
 import com.example.qualityapp.viewmodel.AppError
 import com.example.qualityapp.viewmodel.SelectionViewModel
+import androidx.compose.ui.text.font.FontFamily
 
 private val METRO_LINES = listOf("خط ۱", "خط ۲", "خط ۳", "خط ۴", "خط ۵", "خط ۶", "خط ۷")
 
@@ -39,6 +40,21 @@ fun SelectionScreen(
         ) {
             Text("انتخاب چک لیست", style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(16.dp))
+
+            var showDebug by remember { mutableStateOf(false) }
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = { showDebug = true }) {
+                    Text("🐞 دیباگ")
+                }
+            }
+
+            if (showDebug) {
+                DebugDialog(onDismiss = { showDebug = false })
+            }
 
             SimpleDropdown("خط", state.line, METRO_LINES, viewModel::onLineChange)
             Spacer(Modifier.height(12.dp))
@@ -171,7 +187,52 @@ fun SelectionScreen(
         }
     }
 }
+//--------------------------
+@Composable
+private fun DebugDialog(onDismiss: () -> Unit) {
+    val logs by com.example.qualityapp.data.DebugLog.lines.collectAsStateWithLifecycle()
+    val clipboard = androidx.compose.ui.platform.LocalContext.current
+        .getSystemService(android.content.ClipboardManager::class.java)
 
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("لاگ دیباگ (${logs.size} خط)") },
+        text = {
+            if (logs.isEmpty()) {
+                Text("هنوز لاگی نیست. دکمه «انتخاب چک لیست» را بزنید.")
+            } else {
+                Column(
+                    Modifier
+                        .heightIn(max = 400.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    logs.forEach { line ->
+                        Text(
+                            line,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                clipboard?.setPrimaryClip(
+                    android.content.ClipData.newPlainText("debug", logs.joinToString("\n"))
+                )
+            }) { Text("کپی همه") }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = {
+                    com.example.qualityapp.data.DebugLog.clear()
+                }) { Text("پاک کردن") }
+                TextButton(onClick = onDismiss) { Text("بستن") }
+            }
+        }
+    )
+}
 // -------------------------------------------------------------------
 @Composable
 private fun SimpleDropdown(

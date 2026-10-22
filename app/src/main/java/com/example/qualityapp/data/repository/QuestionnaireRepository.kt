@@ -15,6 +15,8 @@ import com.squareup.moshi.Types
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.example.qualityapp.data.DebugLog
+
 
 @Singleton
 class QuestionnaireRepository @Inject constructor(
@@ -45,66 +47,59 @@ class QuestionnaireRepository @Inject constructor(
     // ---------------------------------------------------------------
     suspend fun listQuestionnaires(): List<String> {
         val path = questionnairesPath.ifBlank { "" }
-        Log.d(TAG, "GET contents owner=$owner repo=$dataRepo path='$path'")
+        val token = authHeader()
 
-        val response = try {
-            apiService.getContentsRaw(
-                owner = owner,
-                repo = dataRepo,
-                path = path,
-                authHeader = authHeader()
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Network error while listing", e)
-            throw IOException("خطای شبکه: ${e.javaClass.simpleName}: ${e.message}", e)
-        }
+        // لاگ اطلاعات پیکربندی — بدون نمایش خود توکن
+        DebugLog.log("Config", "owner=$owner")
+        DebugLog.log("Config", "repo=$dataRepo")
+        DebugLog.log("Config", "branch=$branch")
+        DebugLog.log("Config", "path='$path'")
+        DebugLog.log("Config", "token=${token?.let { "موجود (${it.length} کاراکتر)" } ?: "خالی"}")
 
-        // خطای HTTP
-        if (!response.isSuccessful) {
-            val err = runCatching { response.errorBody()?.string() }.getOrNull()
-            Log.e(TAG, "HTTP ${response.code()}: $err")
-            val userMsg = when (response.code()) {
-                401 -> "توکن نامعتبر است یا دسترسی ندارد (401)"
-                403 -> "محدودیت نرخ یا دسترسی ناکافی (403)"
-                404 -> "مسیر '$path' در مخزن $dataRepo/$owner پیدا نشد (404)"
-                else -> "خطای HTTP ${response.code()}"
-            }
-            throw IOException("$userMsg\n\n$err".trim())
-        }
-
-        // خواندن بدنه
-        val raw = runCatching { response.body()?.string() }.getOrNull()
-        if (raw.isNullOrBlank()) {
-            throw IOException("پاسخ گیت‌هاب خالی بود")
-        }
-        Log.d(TAG, "RAW (${raw.length} chars): ${raw.take(800)}")
-
-        // پارس دستی — پاسخ می‌تواند آرایه یا شیء باشد
         return try {
+            DebugLog.log("HTTP", "GET contents/$path ...")
+            val response = apiService.getContentsRaw(owner, dataRepo, path, token)
+
+            DebugLog.log("HTTP", "Status: ${response.code()}")
+            if (!response.isSuccessful) {
+                val err = runCatching { response.errorBody()?.string() }.getOrNull()
+                DebugLog.log("HTTP", "Error body: ${err?.take(500)}")
+                throw IOException(
+                    when (response.code()) {
+                        401 -> "توکن نامعتبر است (401)"
+                        403 -> "دسترسی کافی نیست یا Rate Limit (403)"
+                        404 -> "مسیر '$path' پیدا نشد (404)"
+                        else -> "HTTP ${response.code()}"
+                    }
+                )
+            }
+
+            val raw = response.body()?.string().orEmpty()
+            DebugLog.log("HTTP", "RAW (${raw.length} chars): ${raw.take(500)}")
+
             val trimmed = raw.trim()
             val items: List<GitHubContentItem> = when {
                 trimmed.startsWith("[") -> {
-                    val type = Types.newParameterizedType(
-                        List::class.java, GitHubContentItem::class.java
-                    )
-                    moshi.adapter<List<GitHubContentItem>>(type).fromJson(raw)
-                        ?: emptyList()
+                    val type = Types.newParameterizedType(List::class.java, GitHubContentItem::class.java)
+                    moshi.adapter<List<GitHubContentItem>>(type).fromJson(raw) ?: emptyList()
                 }
                 trimmed.startsWith("{") -> {
-                    val single = moshi.adapter(GitHubContentItem::class.java).fromJson(raw)
-                    if (single != null) listOf(single) else emptyList()
+                    moshi.adapter(GitHubContentItem::class.java).fromJson(raw)?.let(::listOf) ?: emptyList()
                 }
                 else -> throw IOException("پاسخ غیرمنتظره: ${raw.take(200)}")
             }
 
-            items.filter { it.type == "file" && it.name.endsWith(".json", true) }
+            val names = items
+                .filter { it.type == "file" && it.name.endsWith(".json", true) }
                 .map { it.name }
                 .sorted()
-                .also { Log.d(TAG, "Parsed ${it.size} questionnaires: $it") }
+
+            DebugLog.log("OK", "تعداد پرسشنامه: ${names.size} → $names")
+            names
 
         } catch (e: Exception) {
-            Log.e(TAG, "Parse error. RAW=$raw", e)
-            throw IOException("خطای پارس JSON: ${e.message}\n\nRAW: ${raw.take(300)}", e)
+            DebugLog.error("listQuestionnaires", "شکست خورد", e)
+            throw IOException(e.message ?: "خطای نامشخص", e)
         }
     }
 
