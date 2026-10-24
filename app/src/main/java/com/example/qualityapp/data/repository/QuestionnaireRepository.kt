@@ -40,12 +40,12 @@ class QuestionnaireRepository @Inject constructor(
         DebugLog.log("Config", "owner=$owner")
         DebugLog.log("Config", "repo=$dataRepo")
         DebugLog.log("Config", "path='$path'")
+        DebugLog.log("Config", "branch=$branch")
         DebugLog.log("Token", "منبع: ${tokenProvider.sourceLabel()}")
         DebugLog.log("Token", "طول: ${tokenProvider.tokenLength()} کاراکتر")
-        DebugLog.log("Token", "مسیر فایل: ${tokenProvider.tokenFilePath()}")
 
         return try {
-            DebugLog.log("HTTP", "GET contents/$path ...")
+            DebugLog.log("HTTP", "GET repos/$owner/$dataRepo/contents/$path ...")
             val response = apiService.getContentsRaw(owner, dataRepo, path, token)
             DebugLog.log("HTTP", "Status: ${response.code()}")
 
@@ -54,7 +54,7 @@ class QuestionnaireRepository @Inject constructor(
                 DebugLog.log("HTTP", "Error body: ${err?.take(500)}")
                 throw IOException(
                     when (response.code()) {
-                        401 -> "توکن نامعتبر است (401). توکن را در فایل token.txt یا تنظیمات بررسی کنید."
+                        401 -> "توکن نامعتبر است (401). توکن را در تنظیمات بررسی کنید."
                         403 -> "دسترسی کافی نیست یا Rate Limit (403)"
                         404 -> "مسیر '$path' پیدا نشد (404)"
                         else -> "HTTP ${response.code()}"
@@ -63,7 +63,9 @@ class QuestionnaireRepository @Inject constructor(
             }
 
             val raw = response.body()?.string().orEmpty()
-            DebugLog.log("HTTP", "RAW (${raw.length} chars): ${raw.take(500)}")
+            DebugLog.log("HTTP", "RAW length: ${raw.length} chars")
+            DebugLog.log("HTTP", "RAW starts with: '${raw.trim().take(2)}'")
+            DebugLog.log("HTTP", "RAW preview: ${raw.take(1500)}")
 
             val trimmed = raw.trim()
             val items: List<GitHubContentItem> = when {
@@ -71,21 +73,34 @@ class QuestionnaireRepository @Inject constructor(
                     val type = Types.newParameterizedType(
                         List::class.java, GitHubContentItem::class.java
                     )
-                    moshi.adapter<List<GitHubContentItem>>(type).fromJson(raw) ?: emptyList()
+                    val parsed = moshi.adapter<List<GitHubContentItem>>(type).fromJson(raw)
+                    DebugLog.log("Parse", "آرایه شناسایی شد — ${parsed?.size ?: 0} آیتم پارس شد")
+                    parsed ?: emptyList()
                 }
                 trimmed.startsWith("{") -> {
-                    moshi.adapter(GitHubContentItem::class.java).fromJson(raw)
-                        ?.let(::listOf) ?: emptyList()
+                    val parsed = moshi.adapter(GitHubContentItem::class.java).fromJson(raw)
+                    DebugLog.log("Parse", "شیء تکی شناسایی شد — ${if (parsed != null) 1 else 0} آیتم")
+                    if (parsed != null) listOf(parsed) else emptyList()
                 }
                 else -> throw IOException("پاسخ غیرمنتظره: ${raw.take(200)}")
             }
 
-            val names = items
-                .filter { it.type == "file" && it.name.endsWith(".json", true) }
-                .map { it.name }
-                .sorted()
+            // ---- لاگ کامل هر آیتم قبل از فیلتر ----
+            items.forEachIndexed { i, item ->
+                DebugLog.log("Item[$i]", "name='${item.name}', type='${item.type}', size=${item.size}")
+            }
+            DebugLog.log("Filter", "تعداد کل آیتم‌های دریافتی: ${items.size}")
 
-            DebugLog.log("OK", "تعداد پرسشنامه: ${names.size} → $names")
+            // ---- فیلتر مرحله‌به‌مرحله با لاگ ----
+            val files = items.filter { it.type == "file" }
+            DebugLog.log("Filter", "بعد از type=file → ${files.size} آیتم")
+
+            val jsonFiles = files.filter { it.name.endsWith(".json", ignoreCase = true) }
+            DebugLog.log("Filter", "بعد از endsWith(.json) → ${jsonFiles.size} آیتم")
+
+            val names = jsonFiles.map { it.name }.sorted()
+            DebugLog.log("OK", "لیست نهایی (${names.size}): $names")
+
             names
 
         } catch (e: Exception) {
